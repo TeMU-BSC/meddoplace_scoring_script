@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from openlocationcode import openlocationcode as olc
 import pandas as pd
+import math
 
 
 def geonames2coords_dict(path):
@@ -14,6 +15,7 @@ def geonames2coords_dict(path):
     # lee el archivo y selecciona solo las columnas especificadas
     geonames_df = pd.read_csv(path, usecols=[0, 1, 4, 5], sep='\t', low_memory=True,
                               header=None, names=['geoname_id', 'name', 'lat', 'long'])
+
     geonames_df = geonames_df.set_index('geoname_id')
     diccionario = geonames_df[['lat', 'long']].apply(tuple, axis=1).to_dict()
     return diccionario
@@ -31,7 +33,12 @@ def pluscode2coord(pluscode):
     """
     Transform pluscode list to latitude/longitude coordinates
     """
-    coords = olc.decode(pluscode)
+    try:
+        coords = olc.decode(pluscode)
+    except:
+
+        return (None, None)
+
     return (coords.latitudeCenter, coords.longitudeCenter)
 
 
@@ -55,13 +62,15 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
     dict1 = {}
     dict2 = {}
     for document in gold_standard:
-        document_id = document[0][0]
+
+        document_id = document[0][3]
         dict1[document_id] = document
     for document in predictions:
-        document_id = document[0][0]
+        document_id = document[0][3]
         dict2[document_id] = document
 
     for document_id in dict1.keys():
+
         gold_doc = dict1[document_id]
         if document_id not in dict2.keys():
             # this means that this document is not in the prediction file, therefore its empty
@@ -76,20 +85,70 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
                 # If spans are equalc in prediciton and gold standard
 
                 if task == "PC":
+
                     gold_top[4] = gold_top[4].split("+")[0]
                     predicted_top[4] = predicted_top[4].split("+")[0]
 
                     if (gold_top[1] == predicted_top[1]) & (gold_top[2] == predicted_top[2]):
 
-                        if ((gold_top[4] == predicted_top[4])):
+                        if (gold_top[0] == (None, None)):
+                            # ignore nocode
+
+                            predicted_doc.remove(predicted_top)
+                            gold_doc.remove(gold_top)
+
+                        elif ((gold_top[4] == predicted_top[4])):
+
                             # Add a true positive
                             tp += 1
                             # Removve elements from list to calculate later false positives and false negatives
                             predicted_doc.remove(predicted_top)
                             gold_doc.remove(gold_top)
+                            # Get coordinates
+                            predicted_coord = predicted_top[0]
+                            gold_coord = gold_top[0]
+                            if write:
+                                if predicted_coord == (None, None):
+
+                                    lat = -gold_coord[0]
+                                    long = gold_coord[1] - \
+                                        180 if gold_coord[1] > 0 else gold_coord[1] + 180
+                                    predicted_coord = (lat, long)
+
+                                accuracy[toponym_index] = np.log(
+                                    1 + great_circle(predicted_coord, gold_coord).kilometers)
+
+                        # Calculate accuracy as paper sead
+                        # The logarithm ensure that that the difference between small errors is more significant than the same different
+                        # between large error.
+
+                        break
+                # GeoNames
+                elif (gold_top[1] == predicted_top[1]) & (gold_top[2] == predicted_top[2]):
+                    if (write == False):
+
+                        if (gold_top[0] == predicted_top[0]):
+
+                            tp += 1
+                            # Get coordinates
+                            predicted_coord = predicted_top[0]
+                            gold_coord = gold_top[0]
+                            # Removve elements from list to calculate later false positives and false negatives
+                            predicted_doc.remove(predicted_top)
+                            gold_doc.remove(gold_top)
+
+                        # task 4
+                    # if there is a Nocode in the goldstandard, ignore that line.
+                    elif (gold_top[0] == predicted_top[0]):
+
+                        # Add a true positive
+                        tp += 1
                         # Get coordinates
                         predicted_coord = predicted_top[0]
                         gold_coord = gold_top[0]
+                        # Removve elements from list to calculate later false positives and false negatives
+                        predicted_doc.remove(predicted_top)
+                        gold_doc.remove(gold_top)
 
                         # Calculate accuracy as paper sead
                         # The logarithm ensure that that the difference between small errors is more significant than the same different
@@ -97,30 +156,39 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
                         if write:
                             accuracy[toponym_index] = np.log(
                                 1 + great_circle(predicted_coord, gold_coord).kilometers)
-                        break
-                # GeoNames
-                elif (gold_top[1] == predicted_top[1]) & (gold_top[2] == predicted_top[2]) & (gold_top[0] == predicted_top[0]):
-                    # Add a true positive
-                    tp += 1
-                    # Get coordinates
-                    predicted_coord = predicted_top[0]
-                    gold_coord = gold_top[0]
-                    # Removve elements from list to calculate later false positives and false negatives
-                    predicted_doc.remove(predicted_top)
-                    gold_doc.remove(gold_top)
-                    # Calculate accuracy as paper sead
-                    # The logarithm ensure that that the difference between small errors is more significant than the same different
-                    # between large error.
-                    if write:
-                        accuracy[toponym_index] = np.log(
-                            1 + great_circle(predicted_coord, gold_coord).kilometers)
+                    elif ((type(gold_top[0]) is tuple) == False):
+                        gold_doc.remove(gold_top)
+                        predicted_doc.remove(predicted_top)
+                    # if there is a nocode line, then the opposite distance is taken from the goldstandard.
+                    elif ((type(predicted_top[0]) is tuple) == False):
+                        # the prediction was wrong
+                        predicted_coord = predicted_top[0]
+                        gold_coord = gold_top[0]
+                        lat = -gold_coord[0]
+                        long = gold_coord[1] - \
+                            180 if gold_coord[1] > 0 else gold_coord[1] + 180
+                        predicted_coord = (lat, long)
+
+                        if write:
+                            accuracy[toponym_index] = np.log(
+                                1 + great_circle(predicted_coord, gold_coord).kilometers)
+                    # prediction found in goldstandard
+
+                    # annotation found but the code is not correct then only the distance is calculated
+                    else:
+                        predicted_coord = predicted_top[0]
+                        gold_coord = gold_top[0]
+                        if write:
+                            accuracy[toponym_index] = np.log(
+                                1 + great_circle(predicted_coord, gold_coord).kilometers)
+
                     break
                 # else:
                     # If not equal
         fp += len(predicted_doc)
         fn += len(gold_doc)
-
     f_score = (tp, fp, fn)
+
     output = {"f_score": f_score, "accuracy": accuracy}
     return output
 
@@ -134,6 +202,7 @@ def print_stats(accuracy, scores=None, plot=False, write=True):
     :param plot: whether to plot the accuracy line by toponym
     :return: N/A
     """
+
     MAX_ERROR = 20039  # Furthest distance between two points on Earth, i.e the circumference / 2
     if scores is not None:
         precision = scores[0] / (scores[0] + scores[1])
@@ -192,10 +261,10 @@ def calculat_fscore(gold_standard, predictions):
     dict1 = {}
     dict2 = {}
     for document in gold_standard:
-        document_id = document[0][0]
+        document_id = document[0][3]
         dict1[document_id] = document
     for document in predictions:
-        document_id = document[0][0]
+        document_id = document[0][3]
         dict2[document_id] = document
 
     for document_id in dict1.keys():
@@ -209,7 +278,12 @@ def calculat_fscore(gold_standard, predictions):
             # sumamos un índice para el AUC
 
             for predicted_top in predicted_doc[:]:
-                if set(gold_top) == set(predicted_top):
+                # if nocode in goldstandard then, it is ignored
+                if (gold_top[0] == predicted_top[0]) & (gold_top[1] == predicted_top[1]) & (gold_top[-1] == "NOCODE"):
+                    predicted_doc.remove(predicted_top)
+                    gold_doc.remove(gold_top)
+                    break
+                elif set(gold_top) == set(predicted_top):
                     # Add a true positive
                     tp += 1
                     # Removve elements from list to calculate later false positives and false negatives
@@ -217,6 +291,7 @@ def calculat_fscore(gold_standard, predictions):
                     gold_doc.remove(gold_top)
                     break
         fp += len(predicted_doc)
+
         fn += len(gold_doc)
 
     scores = (tp, fp, fn)
@@ -278,6 +353,7 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
 
             for gold_top in gold_doc[:]:
                 for predicted_top in predicted_doc[:]:
+
                     if set(gold_top) == set(predicted_top):
                         # Add a true positive
                         tp += 1
@@ -302,6 +378,7 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
 
             fp += len(predicted_doc)
             fn += len(gold_doc)
+
             if strict == False:
                 overlapping_fp += len(overlapping_predicted_doc)
                 overlapping_fn += len(overlapping_gold_doc)

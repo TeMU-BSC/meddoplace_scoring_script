@@ -6,6 +6,7 @@ import warnings
 import pandas as pd
 import numpy as np
 import logging as log
+import pickle
 general_path = os.getcwd().split(
     "meddoplace-evaluation-script")[0]+"meddoplace-evaluation-script/"
 sys.path.append(general_path+'src/')
@@ -87,12 +88,16 @@ def main(argv=None):
         task_22 = calculate_PC(df_gs, df_preds, out_file, write=False)
         task_23 = calculate_SCTID(df_gs, df_preds, out_file, write=False)
         task_3 = calculate_Task3(df_gs, df_preds, out_file, write=False)
-        print(task_1["f_score"])
-        print(task_21["f_score"])
-        print(task_22["f_score"])
-        print(task_23["f_score"])
-        print(task_3["f_score"])
-
+        F_score_AVG = (task_21["f_score"]+task_1["f_score"] +
+                       task_22["f_score"]+task_23["f_score"]+task_3["f_score"])/5
+        out = open(out_file, 'w')
+        out.write("F_score_T1:"+str(task_1["f_score"])+"\n")
+        out.write("F_score_T2-1:"+str(task_21["f_score"])+"\n")
+        out.write("F_score_T2-2:"+str(task_22["f_score"])+"\n")
+        out.write("F_score_T2-3:"+str(task_23["f_score"])+"\n")
+        out.write("F_score_T3:"+str(task_3["f_score"])+"\n")
+        out.write("F_score_AVG:"+str(F_score_AVG))
+        out.flush()
         # lista_tipos = list(df_gs.source.value_counts().keys())
         # for tipo in lista_tipos:
         #     if tipo == "SCTID":
@@ -146,10 +151,9 @@ def calculate_Task3(df_gs, df_preds, out_file, write=True):
 def calculate_PC(df_gs, df_preds, out_file, write=True):
     print("Computing evaluation scores for pluscodes")
     # Filter pluscodes mentiones
-    df_gs_pc = df_gs[(df_gs.source == "PC") & (df_gs.normalization !=
-                     "NOCODE")].reset_index(drop=True)
-    df_preds_pc = df_preds[(df_preds.source == "PC") & (
-        df_preds.normalization != "NOCODE")].reset_index(drop=True)
+    df_gs_pc = df_gs[(df_gs.source == "PC")].reset_index(drop=True)
+
+    df_preds_pc = df_preds[df_preds.source == "PC"].reset_index(drop=True)
     # Check if pluscodes are correct
     df_preds_pc["isValid"] = df_preds_pc.normalization.apply(
         lambda x: checkPluscode(x))
@@ -159,8 +163,8 @@ def calculate_PC(df_gs, df_preds, out_file, write=True):
 
         log.error("Some pluscodes are not correctly formatted")
         for n in df_preds_pc[df_preds_pc["isValid"] == False].normalization:
-            log.error("este es "+n)
-        sys.exit(0)
+            log.error("normalization not valid = "+n)
+        # sys.exit(0)
 
     # Transform pluscodes to coordinates
     if write:
@@ -176,6 +180,7 @@ def calculate_PC(df_gs, df_preds, out_file, write=True):
         'coords', 'start_span', 'end_span', "filename", "normalization"]].values.tolist()).to_list()
     list_preds_per_doc = df_preds_pc.groupby('filename').apply(lambda x: x[[
         'coords', 'start_span', 'end_span', "filename", "normalization"]].values.tolist()).to_list()
+
     output = calculate_scores(
         list_preds_per_doc, list_gs_per_doc, inspect=True, task="PC", write=write)
     scores = print_stats(accuracy=list(
@@ -192,23 +197,32 @@ def calculate_PC(df_gs, df_preds, out_file, write=True):
 def calculate_GN(df_gs, df_preds, out_file, options, write=True):
     print("Computing evaluation scores for geonames")
     # Filter geonames mentiones
-    df_gs_geo = df_gs[(df_gs.source == "GN") & (df_gs.normalization !=
-                                                "NOCODE")].reset_index(drop=True)
-    df_preds_geo = df_preds[(df_preds.source == "GN") & (
-        df_preds.normalization != "NOCODE")].reset_index(drop=True)
+    df_gs_geo = df_gs[df_gs.source == "GN"].reset_index(drop=True)
+    df_preds_geo = df_preds[df_preds.source == "GN"].reset_index(drop=True)
     # Ensure normalization is int value
-    df_gs_geo["normalization"] = df_gs_geo.normalization.astype(int)
-    df_preds_geo["normalization"] = df_preds_geo.normalization.astype(int)
+
+    df_gs_geo["normalization"] = df_gs_geo.normalization.apply(
+        lambda x: int(x) if str(x).isdigit() else x)
+    df_preds_geo["normalization"] = df_preds_geo.normalization.apply(
+        lambda x: int(x) if str(x).isdigit() else x)
+
     # Read diccionario
     print("Reading geonames dictionary to transform ids to coordinates...")
     if write:
         geoname2coord = geonames2coords_dict(options.dictionary)
+        # # open a file, where you ant to store the data
+        # file = open('./important', 'rb')
+        # # dump information to that file
+        # geoname2coord = pickle.load(file)
+        # # close the file
+        # file.close()
     # Check if geocodes are correct
         df_gs_geo["coords"] = df_gs_geo.normalization.map(geoname2coord)
-        df_preds_geo["coords"] = df_preds_geo.normalization.map(geoname2coord)
+        df_preds_geo["coords"] = df_preds_geo.normalization.map(
+            geoname2coord)
     else:
-        df_gs_geo["coords"] = 0
-        df_preds_geo["coords"] = 0
+        df_gs_geo["coords"] = df_gs_geo["normalization"]
+        df_preds_geo["coords"] = df_preds_geo["normalization"]
     # Group predictions per document (one list per document)
     list_gs_per_doc = df_gs_geo.groupby('filename').apply(
         lambda x: x[['coords', 'start_span', 'end_span', "filename"]].values.tolist()).to_list()
@@ -217,8 +231,10 @@ def calculate_GN(df_gs, df_preds, out_file, options, write=True):
     # Compute scores
     output = calculate_scores(
         list_preds_per_doc, list_gs_per_doc, inspect=True, write=write)
+
     scores = print_stats(accuracy=list(
         output['accuracy'].values()), scores=output['f_score'], plot=True, write=write)
+
     # Print results
     if write:
         out = open(out_file, 'w')

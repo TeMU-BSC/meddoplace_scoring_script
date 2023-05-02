@@ -1,2 +1,0 @@
-command: python $program/meddoplace_normalization.py -i $input -o $output -d /app/allCountries.txt -p GN
-description: Meddoplace evaluation program (https://github.com/TeMU-BSC/meddoplace-evaluation-script).
