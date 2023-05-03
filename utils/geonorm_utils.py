@@ -180,6 +180,7 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
         fp += len(predicted_doc)
         fn += len(gold_doc)
     f_score = (tp, fp, fn)
+    print(f_score)
     output = {"f_score": f_score, "accuracy": accuracy}
     return output
 
