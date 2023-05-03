@@ -6,11 +6,10 @@ import warnings
 import pandas as pd
 import numpy as np
 import logging as log
-import pickle
+
 general_path = os.getcwd().split(
     "meddoplace-evaluation-script")[0]+"meddoplace-evaluation-script/"
 sys.path.append(general_path+'src/')
-
 
 def main(argv=None):
     # load logger
@@ -98,18 +97,10 @@ def main(argv=None):
         out.write("F_score_T3:"+str(task_3["f_score"])+"\n")
         out.write("F_score_AVG:"+str(F_score_AVG))
         out.flush()
-        # lista_tipos = list(df_gs.source.value_counts().keys())
-        # for tipo in lista_tipos:
-        #     if tipo == "SCTID":
-        #         print("No desarollado aún")
-        #     elif tipo == "PC":
-        #         print("No desarollado aún")
-        #     elif tipo == "GN":
-        #         print("No desarollado aún")
+
     else:
         print(options.opcion)
-        print("Option not available")
-    #
+        print("Incorrect option, please choose from: task1, GN, PC, SCTID, task3, all.")
 
 
 def calculate_Task1(df_gs, df_preds, out_file, write=True):
@@ -132,8 +123,9 @@ def calculate_Task1(df_gs, df_preds, out_file, write=True):
 def calculate_Task3(df_gs, df_preds, out_file, write=True):
     print("Computing evaluation scores for Task 3")
     df_gs_sct = df_gs[df_gs["class"] != "None"].reset_index(drop=True)
-    df_preds_sct = df_preds[df_preds["class"]
-                            != "None"].reset_index(drop=True)
+    df_preds_sct = df_preds[(df_preds["class"] == 'ATENCION') | (df_preds["class"] == 'RESIDENCIA') |
+                            (df_preds["class"] == 'MOVIMIENTO') | (df_preds["class"] == 'LUGAR-NATAL') |
+                            (df_preds["class"] == 'OTHER')].reset_index(drop=True)
     list_gs_per_doc = df_gs_sct.groupby('filename').apply(lambda x: x[[
         'start_span', 'end_span', 'label', "filename", "class"]].values.tolist()).to_list()
     list_preds_per_doc = df_preds_sct.groupby('filename').apply(
@@ -207,15 +199,10 @@ def calculate_GN(df_gs, df_preds, out_file, options, write=True):
         lambda x: int(x) if str(x).isdigit() else x)
 
     # Read diccionario
-    print("Reading geonames dictionary to transform ids to coordinates...")
     if write:
+        print("Reading geonames dictionary to transform ids to coordinates...")
         geoname2coord = geonames2coords_dict(options.dictionary)
-        # # open a file, where you ant to store the data
-        # file = open('./important', 'rb')
-        # # dump information to that file
-        # geoname2coord = pickle.load(file)
-        # # close the file
-        # file.close()
+
     # Check if geocodes are correct
         df_gs_geo["coords"] = df_gs_geo.normalization.map(geoname2coord)
         df_preds_geo["coords"] = df_preds_geo.normalization.map(

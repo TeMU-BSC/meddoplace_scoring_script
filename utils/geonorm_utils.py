@@ -58,11 +58,10 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
     accuracy = {}
     toponym_index = -1
     # Iterate over mentiones of each document
-    # Dictonary is made to each each document per key, making sure that if document is not in prediction, it will not affect other documents.
+    # Dictonary is made to each document per key, making sure that if document is not in prediction, it will not affect other documents.
     dict1 = {}
     dict2 = {}
     for document in gold_standard:
-
         document_id = document[0][3]
         dict1[document_id] = document
     for document in predictions:
@@ -70,96 +69,92 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
         dict2[document_id] = document
 
     for document_id in dict1.keys():
-
         gold_doc = dict1[document_id]
         if document_id not in dict2.keys():
             # this means that this document is not in the prediction file, therefore its empty
             predicted_doc = []
         else:
             predicted_doc = dict2[document_id]
-
         for gold_top in gold_doc[:]:
             # sumamos un índice para el AUC
             toponym_index += 1
             for predicted_top in predicted_doc[:]:
-                # If spans are equalc in prediciton and gold standard
-
+                # print(gold_top, predicted_top)
                 if task == "PC":
-
+                    # Remove everything after the '+' sign for a more lenient evaluation
                     gold_top[4] = gold_top[4].split("+")[0]
                     predicted_top[4] = predicted_top[4].split("+")[0]
-
+                    # Spans are the same
                     if (gold_top[1] == predicted_top[1]) & (gold_top[2] == predicted_top[2]):
-
+                        # Gold normalization is NOCODE -> ignore completely
                         if (gold_top[0] == (None, None)):
-                            # ignore nocode
-
                             predicted_doc.remove(predicted_top)
                             gold_doc.remove(gold_top)
-
+                        # Codes are the same in GS and prediction
                         elif ((gold_top[4] == predicted_top[4])):
-
                             # Add a true positive
                             tp += 1
-                            # Removve elements from list to calculate later false positives and false negatives
+                            # Remove elements from list to calculate later false positives and false negatives
                             predicted_doc.remove(predicted_top)
                             gold_doc.remove(gold_top)
                             # Get coordinates
                             predicted_coord = predicted_top[0]
                             gold_coord = gold_top[0]
                             if write:
-                                if predicted_coord == (None, None):
-
-                                    lat = -gold_coord[0]
-                                    long = gold_coord[1] - \
-                                        180 if gold_coord[1] > 0 else gold_coord[1] + 180
-                                    predicted_coord = (lat, long)
-
+                                # Calculate accuracy as paper said
+                                # The logarithm ensure that the difference between small errors is more significant than the same different
+                                # between large error.
+                                accuracy[toponym_index] = np.log(
+                                    1 + great_circle(predicted_coord, gold_coord).kilometers)
+                        # Codes are not the same
+                        else:
+                            predicted_coord = predicted_top[0]
+                            gold_coord = gold_top[0]
+                            # If the predicted code is not valid, default to the furthest point from GS (i.e. antipodes)
+                            if predicted_coord == (None, None):
+                                lat = -gold_coord[0]
+                                long = gold_coord[1] - \
+                                       180 if gold_coord[1] > 0 else gold_coord[1] + 180
+                                predicted_coord = (lat, long)
+                            if write:
                                 accuracy[toponym_index] = np.log(
                                     1 + great_circle(predicted_coord, gold_coord).kilometers)
 
-                        # Calculate accuracy as paper sead
-                        # The logarithm ensure that that the difference between small errors is more significant than the same different
-                        # between large error.
-
                         break
-                # GeoNames
+                # Task isn't PC and spans are the same
                 elif (gold_top[1] == predicted_top[1]) & (gold_top[2] == predicted_top[2]):
+                    # If we are not calculating distance metrics, we can skip some steps
                     if (write == False):
-
+                        # Codes match
                         if (gold_top[0] == predicted_top[0]):
-
+                            # Add true positive
                             tp += 1
-                            # Get coordinates
-                            predicted_coord = predicted_top[0]
-                            gold_coord = gold_top[0]
                             # Removve elements from list to calculate later false positives and false negatives
                             predicted_doc.remove(predicted_top)
                             gold_doc.remove(gold_top)
 
                         # task 4
-                    # if there is a Nocode in the goldstandard, ignore that line.
+                    # If we want to calculate distance metrics and codes match.
                     elif (gold_top[0] == predicted_top[0]):
-
                         # Add a true positive
                         tp += 1
                         # Get coordinates
                         predicted_coord = predicted_top[0]
                         gold_coord = gold_top[0]
-                        # Removve elements from list to calculate later false positives and false negatives
+                        # Remove elements from list to calculate later false positives and false negatives
                         predicted_doc.remove(predicted_top)
                         gold_doc.remove(gold_top)
-
-                        # Calculate accuracy as paper sead
-                        # The logarithm ensure that that the difference between small errors is more significant than the same different
-                        # between large error.
+                        # Calculate accuracy as paper said
+                        # The logarithm ensures that the difference between small errors is more significant than the same difference
+                        # between large errors.
                         if write:
                             accuracy[toponym_index] = np.log(
                                 1 + great_circle(predicted_coord, gold_coord).kilometers)
+                    # Ignore completely NOCODE
                     elif ((type(gold_top[0]) is tuple) == False):
                         gold_doc.remove(gold_top)
                         predicted_doc.remove(predicted_top)
-                    # if there is a nocode line, then the opposite distance is taken from the goldstandard.
+                    # if there is an invalid code, then the opposite distance is taken from the goldstandard.
                     elif ((type(predicted_top[0]) is tuple) == False):
                         # the prediction was wrong
                         predicted_coord = predicted_top[0]
@@ -172,7 +167,6 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
                         if write:
                             accuracy[toponym_index] = np.log(
                                 1 + great_circle(predicted_coord, gold_coord).kilometers)
-                    # prediction found in goldstandard
 
                     # annotation found but the code is not correct then only the distance is calculated
                     else:
@@ -183,12 +177,10 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
                                 1 + great_circle(predicted_coord, gold_coord).kilometers)
 
                     break
-                # else:
-                    # If not equal
         fp += len(predicted_doc)
         fn += len(gold_doc)
     f_score = (tp, fp, fn)
-
+    print(f_score)
     output = {"f_score": f_score, "accuracy": accuracy}
     return output
 
@@ -223,11 +215,6 @@ def print_stats(accuracy, scores=None, plot=False, write=True):
         else:
             accuracy_at_161 = 0
 
-        #
-
-        # ponderado sobre todas las muestras del GS no sólo las correctas)
-
-        # auc_geo = np.trapz(accuracy) / (np.log(MAX_ERROR) * (len(accuracy) - 1))
         auc_geo = np.trapz(accuracy) / (np.log(MAX_ERROR)
                                         * (len(accuracy) - 1))
     else:
@@ -236,19 +223,6 @@ def print_stats(accuracy, scores=None, plot=False, write=True):
         k = 0
         accuracy_at_161 = 0
         auc_geo = 0
-    # The above computes the actual errors committed divided by the worst case scenario, i.e every error = MAX_ERROR
-   # if plot:
-    # fig, ax1 = plt.subplots()
-    # ax1.plot(accuracy, 'r+')
-    # ax2 = ax1.twinx()
-    # ax2.plot(accuracy1, 'b^')
-   #     plt.plot(accuracy)
-   #     plt.title('Distribution of Geocoding Errors. Number of toponyms: ' + str(len(accuracy)))
-   #     plt.ylabel('Error Distance in ln(KM)')
-    #    plt.xlabel('Geocoding Error Per Toponym')
-    #    x1,x2,y1,y2 = plt.axis()
-   #     plt.axis((x1, len(accuracy), y1, 10))
-    #    plt.show()
 
     return {"accuracy_at_161": accuracy_at_161, "auc": auc_geo, "mean": mean, "median": median, "f_score": f_score, "precision": precision, "recall": recall}
 
@@ -314,7 +288,7 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
         for gold_top in predicted_doc_2:
             if gold_top[-1] not in labels:
                 labels.append(gold_top[-1])
-    # Dictonary is made to each each document per key, making sure that if document is not in prediction, it will not affect other documents.
+    # Dictonary is made to each document per key, making sure that if document is not in prediction, it will not affect other documents.
     dict1 = {}
     dict2 = {}
     for document in gold_standard:
@@ -330,7 +304,6 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
     o_TP = 0
     o_FP = 0
     o_FN = 0
-
     for label in labels:
         tp = 0
         fp = 0
