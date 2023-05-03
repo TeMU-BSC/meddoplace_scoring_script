@@ -1,6 +1,6 @@
 # MEDDOPLACE SCORER
 
-This repository contains the official scorer for the [MEDDOPLACE Shared Task](https://temu.bsc.es/meddoplace). 
+This repository contains the official scorer for the [MEDDOPLACE Shared Task](https://temu.bsc.es/meddoplace).
 MEDDOPLACE is a shared task/challenge and set of resources for the detection of locations, clinical departments, and related types of information such as nationalities or patient movements, in medical documents in Spanish.
 For more information about the task, data, evaluation metrics, ... please visit the task's website.
 
@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 For Task 2.1 (Toponym Resolution using GeoNames), you will need the GeoNames *allCountries.txt* gazetteer that can be downloaded from [here](http://download.geonames.org/export/dump/allCountries.zip).
 
-The MEDDOPLACE task data is available on [Zenodo](https://doi.org/10.5281/zenodo.7707566). Keep in mind that the annotated test set won't be uploaded until the task has finished.
+The MEDDOPLACE task data is available on [Zenodo](https://doi.org/10.5281/zenodo.7707566). Keep in mind that the reference test set won't be uploaded until the task has finished.
 
 ## Usage Instructions
 
@@ -25,10 +25,10 @@ This program compares two .TSV files, with one being the reference file (i.e. Go
 and the other being the predictions or results file (i.e. the output of your system). Your .TSV file needs to have the same structure as the reference file,
 which is explained in the [MEDDOPLACE Task Guide]().
 
-For every submission you want to evaluate, you will need to create two folders: `ref/` and `res/`. 
-Place the reference file in the first folder and the predictions file in the second like in the example below:
+For every submission you want to evaluate, you will need to create two folders: `ref/` and `res/`.
+Place the reference file in the former and the predictions file in the latter, as in the example below:
 
-``` 
+```
 meddoplace_submission/
 +-- submission_1/
 |   +-- ref/
@@ -54,12 +54,13 @@ These are the possible arguments:
 - `-i`: input folder where you've created your `ref/` and `res/` folders.
 - `-o`: output folder where you want to save the scores.txt file.
 - `-d`: path to the GeoNames gazetteer (only needed for task 2.1).
-- `-p`: used for the subtask, it may be [`GN`, `PC`, `SCTID`, `task1`, `task3`, `all`]. 
+- `-p`: used for the subtask, it may be `GN`, `PC`, `SCTID`, `task1`, `task3` or `all`.
 Use `GN` for task 2.1, `PC` for task 2.2, `SCTID` for task 2.3 and `all` for task 4.
 
-## Citation
-
-Coming soon...
+For the normalization task, keep in mind that:
+- The predictions file must include a column with the code source (GN, PC or SCTID) or else the program will fail.
+- If any of your codes are not valid, the program will print a warning and count it as a False Negative.
+- The scoring for task 2.1 will take longer than the others as the GeoNames gazetteer is quite big.
 
 ## Contact
 If you have any questions or suggestions, please contact <salvador.limalopez [at] bsc.es>.
