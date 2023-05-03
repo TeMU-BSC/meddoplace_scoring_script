@@ -34,7 +34,8 @@ def main(argv=None):
     pred_dir = os.path.join(options.input, 'res')
     pred_files = [x for x in os.listdir(
         pred_dir) if not os.path.isdir(os.path.join(pred_dir, x))]
-    pred_files = [x for x in pred_files if x[0] not in ["_", "."]]
+    pred_files = [x for x in pred_files if x[0] not in ["_", "."] and x[-4:] == '.tsv']
+    print(pred_files)
     if not pred_files:
         log.error("No valid files found in archive. \
                   \nMake sure file names do not start with . or _ characters")
