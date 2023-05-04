@@ -1,10 +1,8 @@
 import copy
 from geopy.distance import great_circle
 import numpy as np
-import matplotlib.pyplot as plt
 from openlocationcode import openlocationcode as olc
 import pandas as pd
-import math
 
 
 def geonames2coords_dict(path):
@@ -121,7 +119,7 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
                                     1 + great_circle(predicted_coord, gold_coord).kilometers)
 
                         break
-                # Task isn't PC and spans are the same
+                # Task isn't PC (thus, it's GN) and spans are the same
                 elif (gold_top[1] == predicted_top[1]) & (gold_top[2] == predicted_top[2]):
                     # If we are not calculating distance metrics, we can skip some steps
                     if (write == False):
@@ -172,6 +170,7 @@ def calculate_scores(predictions, gold_standard, inspect=False, task="", write=T
                     else:
                         predicted_coord = predicted_top[0]
                         gold_coord = gold_top[0]
+
                         if write:
                             accuracy[toponym_index] = np.log(
                                 1 + great_circle(predicted_coord, gold_coord).kilometers)
@@ -264,7 +263,6 @@ def calculat_fscore(gold_standard, predictions):
                     gold_doc.remove(gold_top)
                     break
         fp += len(predicted_doc)
-
         fn += len(gold_doc)
 
     scores = (tp, fp, fn)

@@ -70,6 +70,7 @@ def main(argv=None):
     df_preds = df_preds.drop_duplicates(
         subset=["filename", "label", "start_span", "end_span"]).reset_index(drop=True)
 
+    # We will use the recall value in these tasks as the formula is equivalent
     if options.opcion == "PC":
         calculate_PC(df_gs, df_preds, out_file)
     elif options.opcion == "GN":
@@ -88,6 +89,7 @@ def main(argv=None):
         task_22 = calculate_PC(df_gs, df_preds, out_file, write=False)
         task_23 = calculate_SCTID(df_gs, df_preds, out_file, write=False)
         task_3 = calculate_Task3(df_gs, df_preds, out_file, write=False)
+        # print(task_1, task_21, task_22, task_23, task_3)
         F_score_AVG = (task_21["f_score"]+task_1["f_score"] +
                        task_22["f_score"]+task_23["f_score"]+task_3["f_score"])/5
         out = open(out_file, 'w')
@@ -135,8 +137,9 @@ def calculate_Task3(df_gs, df_preds, out_file, write=True):
         list_gs_per_doc, list_preds_per_doc)
     if write:
         out = open(out_file, 'w')
-        for k, v in result.items():
-            out.write(str(k)+":"+str(v)+"\n")
+        for k in result.keys():
+            if k.endswith('recall'):
+                out.write(str(k.replace("recall", "Accuracy"))+":"+str(result[k])+"\n")
     else:
         return result
 
@@ -180,8 +183,8 @@ def calculate_PC(df_gs, df_preds, out_file, write=True):
         output['accuracy'].values()), scores=output['f_score'], plot=True, write=write)
     if write:
         out = open(out_file, 'w')
-        out.write("accuracy_at_161:{}\nAUC:{}\nMedian_error:{}\nMean_error:{}\nf_score:{}\nprecision:{}\nrecall:{}\n".format(
-            scores["accuracy_at_161"], scores["auc"], scores["median"], scores["mean"], scores["f_score"], scores["precision"], scores["recall"]))
+        out.write("accuracy_at_161km:{}\nAUC:{}\nMedian_error:{}\nMean_error:{}\nAccuracy:{}\n".format(
+            scores["accuracy_at_161"], scores["auc"], scores["median"], scores["mean"], scores["recall"]))
         out.flush()
     else:
         return scores
@@ -227,8 +230,8 @@ def calculate_GN(df_gs, df_preds, out_file, options, write=True):
     if write:
         out = open(out_file, 'w')
         # out.write("######################GEONAMES NORMALIZATION SCORES######################\n")
-        out.write("accuracy_at_161:{}\nAUC:{}\nMedian_error:{}\nMean_error:{}\nf_score:{}\nprecision:{}\nrecall:{}\n".format(
-            scores["accuracy_at_161"], scores["auc"], scores["median"], scores["mean"], scores["f_score"], scores["precision"], scores["recall"]))
+        out.write("accuracy_at_161:{}\nAUC:{}\nMedian_error:{}\nMean_error:{}\nAccuracy:{}\n".format(
+            scores["accuracy_at_161"], scores["auc"], scores["median"], scores["mean"], scores["recall"]))
         # Lower AUC is better value
         out.flush()
     else:
@@ -247,8 +250,7 @@ def calculate_SCTID(df_gs, df_preds, out_file, write=True):
     result = calculat_fscore(list_gs_per_doc, list_preds_per_doc)
     if write:
         out = open(out_file, 'w')
-        out.write("f_score:{}\nprecision:{}\nrecall:{}\n".format(
-            result["f_score"], result["precision"], result["recall"]))
+        out.write("Accuracy:{}\n".format(result["recall"]))
     else:
         return result
 
