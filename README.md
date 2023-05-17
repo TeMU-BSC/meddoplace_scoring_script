@@ -8,7 +8,7 @@ For more information about the task, data, evaluation metrics, ... please visit 
 To use this scorer, you'll need to have Python 3 installed in your computer. Clone this repository, create a new virtual environment and then install the required packages:
 
 ```bash
-git clone https://github.com/darrylestrada97/meddoplace_scoring_script
+git clone https://github.com/TeMU-BSC/meddoplace_scoring_script
 cd meddoplace_scoring_script
 python3 -m venv venv/
 source venv/bin/activate
