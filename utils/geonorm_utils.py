@@ -195,8 +195,16 @@ def print_stats(accuracy, scores=None, plot=False, write=True):
 
     MAX_ERROR = 20039  # Furthest distance between two points on Earth, i.e the circumference / 2
     if scores is not None:
-        precision = scores[0] / (scores[0] + scores[1])
-        recall = scores[0] / (scores[0] + scores[2])
+        # Calculate precision and recall
+        try:
+            precision = scores[0] / (scores[0] + scores[1])
+        except ZeroDivisionError:
+            precision = 0
+        try:
+            recall = scores[0] / (scores[0] + scores[2])
+        except ZeroDivisionError:
+            recall = 0
+        # Calculate f-score, default to 0 if any of the values is 0
         if precision == 0 or recall == 0:
             f_score = 0
         else:
@@ -267,8 +275,14 @@ def calculat_fscore(gold_standard, predictions):
 
     scores = (tp, fp, fn)
     if scores is not None:
-        precision = scores[0] / (scores[0] + scores[1])
-        recall = scores[0] / (scores[0] + scores[2])
+        try:
+            precision = scores[0] / (scores[0] + scores[1])
+        except ZeroDivisionError:
+            precision = 0
+        try:
+            recall = scores[0] / (scores[0] + scores[2])
+        except ZeroDivisionError:
+            recall = 0
         if precision == 0 or recall == 0:
             f_score = 0
         else:
@@ -365,8 +379,14 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
             precision_key = label+"_precision"
             recall_key = label+"_recall"
             f_score_key = label+"_f_score"
-            precision = scores[0] / (scores[0] + scores[1])
-            recall = scores[0] / (scores[0] + scores[2])
+            try:
+                precision = scores[0] / (scores[0] + scores[1])
+            except ZeroDivisionError:
+                precision = 0
+            try:
+                recall = scores[0] / (scores[0] + scores[2])
+            except ZeroDivisionError:
+                recall = 0
             if precision == 0 or recall == 0:
                 f_score = 0
             else:
@@ -381,10 +401,14 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
                 precision_key = "overlapping_"+label+"_precision"
                 recall_key = "overlapping_"+label+"_recall"
                 f_score_key = "overlapping_"+label+"_f_score"
-                precision = overlapping_scores[0] / \
-                    (overlapping_scores[0] + overlapping_scores[1])
-                recall = overlapping_scores[0] / \
-                    (overlapping_scores[0] + overlapping_scores[2])
+                try:
+                    precision = overlapping_scores[0] / (overlapping_scores[0] + overlapping_scores[1])
+                except ZeroDivisionError:
+                    precision = 0
+                try:
+                    recall = overlapping_scores[0] / (overlapping_scores[0] + overlapping_scores[2])
+                except ZeroDivisionError:
+                    recall = 0
                 if precision == 0 or recall == 0:
                     f_score = 0
                 else:
@@ -393,9 +417,18 @@ def calculat_fscore_per_entity(gold_standard, predictions, strict=True):
                 scores_final[recall_key] = recall
                 scores_final[f_score_key] = f_score
 
-    micro_recall = TP / (TP + FN)
-    micro_precision = TP / (TP + FP)
-    micro_F1 = TP / (TP + (0.5*(FP+FN)))
+    try:
+        micro_recall = TP / (TP + FN)
+    except ZeroDivisionError:
+        micro_recall = 0
+    try:
+        micro_precision = TP / (TP + FP)
+    except ZeroDivisionError:
+        micro_precision = 0
+    if micro_precision == 0 or micro_recall == 0:
+        micro_F1 = 0
+    else:
+        micro_F1 = TP / (TP + (0.5*(FP+FN)))
 
     if strict == False:
         overlapping_micro_recall = o_TP / (o_TP + o_FN)
