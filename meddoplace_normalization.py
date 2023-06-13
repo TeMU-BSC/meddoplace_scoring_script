@@ -130,9 +130,9 @@ def calculate_Task3(df_gs, df_preds, out_file, write=True):
                             (df_preds["class"] == 'MOVIMIENTO') | (df_preds["class"] == 'LUGAR-NATAL') |
                             (df_preds["class"] == 'OTHER')].reset_index(drop=True)
     list_gs_per_doc = df_gs_sct.groupby('filename').apply(lambda x: x[[
-        'start_span', 'end_span', 'label', "filename", "class"]].values.tolist()).to_list()
+        "filename", 'start_span', 'end_span', 'label', "class"]].values.tolist()).to_list()
     list_preds_per_doc = df_preds_sct.groupby('filename').apply(
-        lambda x: x[['start_span', 'end_span', "label", "filename", "class"]].values.tolist()).to_list()
+        lambda x: x[["filename", 'start_span', 'end_span', "label", "class"]].values.tolist()).to_list()
     result = calculat_fscore_per_entity(
         list_gs_per_doc, list_preds_per_doc)
     if write:
